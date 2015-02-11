@@ -2,16 +2,18 @@ import nipype.interfaces.fsl as fsl
 import nipype.interfaces.mrtrix as mrt
 import nipype.interfaces.freesurfer as fs
 import nipype.interfaces.utility as niu
+import nipype.interfaces.matlab as mlab
 import nipype.pipeline.engine as pe
 from nipype.workflows.dmri.fsl.artifacts import ecc_pipeline 
 import scripts.utility as su 
 
 def ReconAll():
+    """recon-all of freesurfer"""
     inputnode = pe.Node(interface=niu.IdentityInterface(fields=['subject_id','T1_files']), name=inputnode)
     recon_all = pe.Node(interface=ReconAll(), name='recon_all')
     outputnode = pe.Node(interface=niu.IdentityInterface(fields=['T1','annot','aparc_aseg','pial']))
 
-    wf = pe.Workflow(name = 'wf')
+    wf = pe.Workflow(name=name)
     wf.connect([
         (inputnode, recon_all[('subject_id','subject_id'),('T1_files','T1_files')]),
         (recon_all, outputnode,[('T1','T1'),('annot','annot'),('aparc_aseg','aparc_aseg'),('pial','pial')])])
@@ -22,26 +24,36 @@ def ReconAll():
 def Surface(name='surface'):
     inputnode = pe.Node(interface=niu.IdentityInterface(fields=['pial']), name='inputnode')
     pial2asc = pe.MapNode(interface=fs.utils.MRIsConvert(), name='pial2asc', iterfield = ['surface', 'rl'])
-    pial2asc.
     extract_high = pe.Node(interface=niu.Function(input_names=['surface', 'rl'],
                                                   output_names=['vertices_high', 'triangles_high'],
-                                                  function=su.extract_high)
+                                                  function=su.extract_high), name='extract_high')
     txt2off = pe.Node(interface=niu.Function(input_names=['vertices', 'triangles', 'rl'],
                                              output_names=['high.off'],
-                                             function=su.txt2off)
-    remesher = pe.Node(interface=niu.Remesher(), name='remesher') 
+                                             function=su.txt2off),name='txt2off')
+    remesher = pe.Node(interface=niu.Remesher(), name='remesher')
+    #wrapper needed Remesher not in niu and coded in c++
     off2txt = pe.Node(interface=niu.Function(input_names=['surface', 'rl'],
                                              output_names=['vertices_low', 'triangles_low'],
-                                             function=su.off2txt)
-    region_mapping = pe.
+                                             function=su.off2txt), name='off2txt')
+
+    region_mapping = pe.Node(interface=mlab.MatlabCommand("rl='lh';run region_mapping.m; quit;"))
+    #not so shure about that
+
     correct_region_mapping = pe.Node(interface=niu.Function(input_names=[
-        'region_mapping_not_corrected', 'vertices', 'triangles', 'rl', 'region_mapping_corr'), 
+        'region_mapping_not_corrected', 'vertices', 'triangles', 'rl', 'region_mapping_corr'], 
         output_names = ['region_mapping_low'],
-        function=su.correct_region_mapping)
+        function=su.correct_region_mapping),name=correct_region_mapping)
     check_region_mapping = pe.Node(interface=niu.CheckRegionMapping(), name='check_region_mapping') 
-    reunify_both_regions
+    #CheckRegionMapping not in niu
+    reunify_both_regions = pe.Node(interface=su.reunify_both_regions(), name='reunify_both_regions')
+
+    wf = pe.Workflow(name=name)
+
+    #connect workflow here
 
 
+
+    return wf
 
 
 def SubcorticalSurface(name="subcorticalsurfaces"):
@@ -51,7 +63,7 @@ def SubcorticalSurface(name="subcorticalsurfaces"):
     list_subcortical = pe.MapNode(interface=su.ListSubcortical(), name=list_subcortical, iterfield=['in_file'])
     outputnode = pe.MapNode(interface=niu.IdentityInterface(fields=['out_fields']), name='outputnode')
 
-    wf = pr.Workflow(name=name)
+    wf = pe.Workflow(name=name)
     wf.connect([
         (inputnode, aseg2srf, [('in_subject_id', 'in_subject_id')]),
         (aseg2srf, list_subcortical, [('out_files', 'in_file')]),
@@ -64,13 +76,14 @@ def SubcorticalSurface(name="subcorticalsurfaces"):
 
 
 def Connectivity(name="connectivity"):
+    #experiencing issues with mrtrix3
     inputnode = pe.Node(interface=niu.IdentityInterface(fields=['in_file']), name='inputnode')
     convert_dicom2nii = pe.Node(interface=mrt.MRConvert(), name='convert_dicom2nii')
     extract_bvecs_bvals = pe.Node(interface=mtr3.utils.MRInfo(), name='extract_bvecs_bvals')
 # ecc = ecc_pipeline()
     convert_nii2dwi = pe.Node(interface=mrt.MRConvert(), name='convert_nii2dwi')
     create_mask = pe.Node(interface=mrt3.Dwi2Mask(), name='create_mask')
-    dwi_extract_lowb = .Node(interface=mrt3.DwiExtract(), name='dwi_extract_lowb')
+    dwi_extract_lowb = pe.Node(interface=mrt3.DwiExtract(), name='dwi_extract_lowb')
     lowb_mif2lowb_nii = pe.Node(interface=mrt.MRConvert(), name='lowb_mif2lowb_nii')
     cor = Coregistration()
     dwi2response = pe.Node(interface=mrt3.preprocess().Dwi2Response, name='dwi2response')
