@@ -7,12 +7,21 @@ from nipype.workflows.dmri.fsl.artifacts import ecc_pipeline
 import scripts.utility as su 
 
 def ReconAll():
+    inputnode = pe.Node(interface=niu.IdentityInterface(fields=['subject_id','T1_files']), name=inputnode)
+    recon_all = pe.Node(interface=ReconAll(), name='recon_all')
+    outputnode = pe.Node(interface=niu.IdentityInterface(fields=['T1','annot','aparc_aseg','pial']))
+
+    wf = pe.Workflow(name = 'wf')
+    wf.connect([
+        (inputnode, recon_all[('subject_id','subject_id'),('T1_files','T1_files')]),
+        (recon_all, outputnode,[('T1','T1'),('annot','annot'),('aparc_aseg','aparc_aseg'),('pial','pial')])])
+
+    return wf
 
 
 def Surface(name='surface'):
     inputnode = pe.Node(interface=niu.IdentityInterface(fields=['pial']), name='inputnode')
-    pial2asc = pe.MapNode(interface=fs.utils.MRIsConvert(), name='pial2asc',
-            iterfield = ['surface', 'rl'])
+    pial2asc = pe.MapNode(interface=fs.utils.MRIsConvert(), name='pial2asc', iterfield = ['surface', 'rl'])
     pial2asc.
     extract_high = pe.Node(interface=niu.Function(input_names=['surface', 'rl'],
                                                   output_names=['vertices_high', 'triangles_high'],
