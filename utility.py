@@ -1,3 +1,4 @@
+from nipype.interfaces.base import CommandLineInputSpec, CommandLine, TraitedSpec, File
 
 def extract_high(surface, rl):
     import numpy as np
@@ -16,7 +17,8 @@ def extract_high(surface, rl):
     np.savetxt(rl + '_vertices_high.txt', vert_high, fmt='%.6f %.6f %.6f')
     tri_high = a[int(nb_vert):, 0:3]
     np.savetxt(rl +'_triangles_high.txt', tri_high, fmt='%d %d %d')
-    return (map(os.path.abspath, [rl + '_vertices_high.txt', rl + '_triangles_high.txt'])
+
+    return (map(os.path.abspath, [rl + '_vertices_high.txt', rl + '_triangles_high.txt']))
 
 def txt2off(vertices, triangles, rl):
     import numpy as np
@@ -25,7 +27,8 @@ def txt2off(vertices, triangles, rl):
     vert = np.loadtxt(vertices)
     tri = np.loadtxt(triangles)
 
-    with open(rl + '_high.off', 'w') as f: f.write('OFF\n') 
+    with open(rl + '_high.off', 'w') as f: 
+        f.write('OFF\n') 
         f.write('{} {} {}\n'.format(int(vert.shape[0]), int(tri.shape[0]), 0)) 
 
     with open(rl + '_high.off', 'a') as f:
@@ -49,7 +52,7 @@ def off2txt(surface, rl):
 
     np.savetxt(rl + '_vertices_low.off', vert, fmt='%.4f')
     np.savetxt(rl + '_triangles_low.off', tri, fmt='%d')
-    return (map(os.path.abspath, [rl + '_vertices_high.txt', rl + '_triangles_high.txt'])
+    return (map(os.path.abspath, [rl + '_vertices_high.txt', rl + '_triangles_high.txt']))
 
 def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl,
                            region_mapping_corr=0.42):
@@ -57,12 +60,12 @@ def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl
     import sys
     region_mapping_corr = float(os.environ['region_mapping_corr'])
     from copy import deepcopy
-    from pylab import *
+    import numpy as np
     from collections import Counter
 
-    texture = loadtxt(region_mapping_not_corrected)
-    vert = loadtxt(vertices)
-    trian = loadtxt(triangles)
+    texture = np.loadtxt(region_mapping_not_corrected)
+    vert = np.loadtxt(vertices)
+    trian = np.loadtxt(triangles)
     for _ in range(10):
         new_texture = deepcopy(texture)
         labels = np.unique(texture)
@@ -72,7 +75,7 @@ def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl
             if len(iverts)>0:
                 for inode in iverts:
                     iall = trian[np.nonzero(trian==inode)[0]].flatten().tolist()
-                    ineig = unique(filter(lambda x: x!=inode, iall)).astype('int')
+                    ineig = np.unique(filter(lambda x: x!=inode, iall)).astype('int')
                     # import pdb; pdb.set_trace()
                     ivals = np.array(Counter(texture[ineig]).most_common()).astype('int')                
                     if ivals[np.nonzero(ivals[:,0]==ilab), 1].shape[1]==0:
@@ -81,32 +84,32 @@ def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl
                         new_texture[inode] = Counter(texture[ineig]).most_common(1)[0][0]
         texture = deepcopy(new_texture) 
 
-    savetxt(rl + '_region_mapping_low.txt', new_texture)
+    np.savetxt(rl + '_region_mapping_low.txt', new_texture)
     return os.path.abspath(rl + '_region_mapping_low.txt')
 
 def reunify_both_regions(region_mapping_list, vertices_list, triangles_list, rl):
     import os
-    from pylab import *
-    lh_reg_map = np.loadtxt(region_mapping_list([0])
+    import numpy as np
+    lh_reg_map = np.loadtxt(region_mapping_list([0]))
     lh_vert = np.loadtxt(vertices_list[0])
     lh_trian = np.loadtxt(triangles_list[0])
     rh_reg_map = np.loadtxt(region_mapping_list[1])
     rh_vert = np.loadtxt(vertices_list[1])
     rh_trian = np.loadtxt(triangles_list[1])
-    vertices = vstack([lh_vert, rh_vert])
-    triangles = vstack([lh_trian,  rh_trian + lh_vert.shape[0]])
-    region_mapping = hstack([lh_reg_map, rh_reg_map])
+    vertices = np.vstack([lh_vert, rh_vert])
+    triangles = np.vstack([lh_trian,  rh_trian + lh_vert.shape[0]])
+    region_mapping = np.hstack([lh_reg_map, rh_reg_map])
     np.savetxt('region_mapping.txt', region_mapping, fmt='%d', newline=" ")
     np.savetxt('vertices.txt', vertices, fmt='%.2f')
     np.savetxt('triangles.txt', triangles, fmt='%d %d %d')
     return (map(os.path.abspath(), ['region_mapping.txt', 'vertices.txt', 'triangles.txt']))
 
 
-class Aseg2SrfInputSpec(CommandLineSpec):
+class Aseg2SrfInputSpec(CommandLineInputSpec):
     in_subject_id = File(desc = "Subject FreeSurfer Id",
-            argstr = '%d',
-            exists = True,
-            mandatory = True)
+                         argstr = '%d',
+                         exists = True,
+                         mandatory = True)
 
 
 class Aseg2SrfOutputSpec(TraitedSpec):
@@ -131,8 +134,8 @@ class Aseg2Srf(CommandLine):
         outputs['subject_id'] = self.inputs.subject_id
         outputs['subjects_dir'] = subjects_dir
         subject_path = os.path.join(subjects_dir, self.inputs.subject_id)
-        label_list = [4 5 7 8 10 11 12 13 14 15 16 17 18 26 28 43 44 46 47 49 50 51 52 53
-                      54 58 60 251 252 253 254 255]
+        label_list = [4, 5, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 26, 28, 43, 44, 46, 47, 49, 50, 51, 52, 53,
+                      54, 58, 60, 251, 252, 253, 254, 255]
         outputs['subcortical_surf'] = [os.path.join(subject_path, 'ascii', 'aseg_%d' %i)
                                        for i in  label_list]
         return outputs

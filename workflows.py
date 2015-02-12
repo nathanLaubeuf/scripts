@@ -5,20 +5,21 @@ import nipype.interfaces.utility as niu
 import nipype.interfaces.matlab as mlab
 import nipype.pipeline.engine as pe
 from nipype.workflows.dmri.fsl.artifacts import ecc_pipeline 
-import scripts.utility as su 
+import utility as su 
 
-def ReconAll():
+def ReconAll(name='ReconAll'):
     """recon-all of freesurfer"""
-    inputnode = pe.Node(interface=niu.IdentityInterface(fields=['subject_id','T1_files']), name=inputnode)
-    recon_all = pe.Node(interface=ReconAll(), name='recon_all')
-    outputnode = pe.Node(interface=niu.IdentityInterface(fields=['T1','annot','aparc_aseg','pial']))
+    inputnode = pe.Node(interface=niu.IdentityInterface(fields=['subject_id_in','T1_files_in']), name='inputnode')
+    recon_all = pe.Node(interface=fs.ReconAll(), name='recon_all')
+    outputnode = pe.Node(interface=niu.IdentityInterface(fields=['T1_out','annot_out','aparc_aseg_out','pial_out']), name='outputnode')
 
     wf = pe.Workflow(name=name)
     wf.connect([
-        (inputnode, recon_all[('subject_id','subject_id'),('T1_files','T1_files')]),
-        (recon_all, outputnode,[('T1','T1'),('annot','annot'),('aparc_aseg','aparc_aseg'),('pial','pial')])])
+        (inputnode, recon_all[('subject_id_in','subject_id'),('T1_files_in','T1_files')]),
+        (recon_all, outputnode,[('T1','T1_out'),('annot','annot_out'),('aparc_aseg','aparc_aseg_out'),('pial','pial_out')])])
 
     return wf
+    #tested
 
 
 def Surface(name='surface'):
@@ -31,14 +32,13 @@ def Surface(name='surface'):
                                              output_names=['high.off'],
                                              function=su.txt2off),name='txt2off')
     remesher = pe.Node(interface=niu.Remesher(), name='remesher')
-    #wrapper needed Remesher not in niu and coded in c++
+    #wrapper needed, Remesher not in niu and coded in c++
     off2txt = pe.Node(interface=niu.Function(input_names=['surface', 'rl'],
                                              output_names=['vertices_low', 'triangles_low'],
                                              function=su.off2txt), name='off2txt')
 
     region_mapping = pe.Node(interface=mlab.MatlabCommand("rl='lh';run region_mapping.m; quit;"))
     #not so shure about that
-
     correct_region_mapping = pe.Node(interface=niu.Function(input_names=[
         'region_mapping_not_corrected', 'vertices', 'triangles', 'rl', 'region_mapping_corr'], 
         output_names = ['region_mapping_low'],
@@ -56,11 +56,11 @@ def Surface(name='surface'):
     return wf
 
 
-def SubcorticalSurface(name="subcorticalsurfaces"):
+def SubcorticalSurface(name='subcorticalsurfaces'):
     """ extraction of the subcortical surfaces from FreeSurfer"""
     inputnode = pe.Node(interface=niu.IdentityInterface(fields=['in_subject_id']), name='inputnode')
     aseg2srf = pe.Node(interface=su.Aseg2Srf(), name='aseg2srf')
-    list_subcortical = pe.MapNode(interface=su.ListSubcortical(), name=list_subcortical, iterfield=['in_file'])
+    list_subcortical = pe.MapNode(interface=su.ListSubcortical(), name='list_subcortical', iterfield=['in_file'])
     outputnode = pe.MapNode(interface=niu.IdentityInterface(fields=['out_fields']), name='outputnode')
 
     wf = pe.Workflow(name=name)
@@ -96,7 +96,7 @@ def Connectivity(name="connectivity"):
     tckgen.inputs.seed_gmwmi = 'iFOD2'
     tckgen.inputs.maxlength = 150
     tckgen.inputs.num = 5000000
-    tcksift = pe.Node(interface=mrt3.TckSift(), neame='tcksift')
+    tcksift = pe.Node(interface=mrt3.TckSift(), name='tcksift')
     tcksift.inputs.term_number = 2500000
     labelconfig = pe.Node(interface=mrt3.utils.LabelConfig(), name='labelconfig')
     tck2connectome_weights = pe.Node(interface=mrt3.tracking.Tck2Connectome(), name='tck2connectome_weights')
