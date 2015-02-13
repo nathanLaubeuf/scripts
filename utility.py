@@ -1,4 +1,4 @@
-from nipype.interfaces.base import CommandLineInputSpec, CommandLine, TraitedSpec, File
+from nipype.interfaces.base import CommandLineInputSpec, CommandLine, TraitedSpec, File, BaseInterfaceInputSpec
 
 def extract_high(surface, rl):
     import numpy as np
@@ -139,3 +139,69 @@ class Aseg2Srf(CommandLine):
         outputs['subcortical_surf'] = [os.path.join(subject_path, 'ascii', 'aseg_%d' %i)
                                        for i in  label_list]
         return outputs
+
+class RemesherInputSpec(CommandLineInputSpec):
+    in_file = File(desc = "Input surface", 
+                   argstr ='%s', 
+                   exists = True, 
+                   mandatory = True,
+                   position = 0)
+    out_file = File(desc = "Remeshed surface", 
+                    exists = True, 
+                    name_source = ['in_file'], 
+                    argstr = '%s',
+                    position = 1)
+
+class RemesherOutputSpec(TraitedSpec):
+    out_file = File(desc = "Remeshed surface", exists = True)
+
+class Remesher(CommandLine):
+    input_spec = RemesherInputSpec
+    output_spec = RemesherOutputSpec
+    _cmd = "./remesher/cmdremesher/cmdremesher"
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['Remeshed surface'] = os.path.abspath(input_spec.out_file)
+        return outputs
+    
+
+class RegionMappingInputSpect(BaseInterfaceInputSpec):
+    rl = File(desc = "right or left hemisphere",
+              exists = True,
+              mandatory = True)
+    pial = File(desc = "pial file",
+                exists = True,
+                mandatory = True)
+    ref_table = File(exists = True, mandatory = True)
+    vertices_low = File(exists = True, mandatory = True)
+    triangles_low = File(exists = True, mandatory = True)
+    vertices_high = File(exists = True, mandatory = True)
+    out_file = File(rl + '_region_mapping_low.txt', desc ="region_mapping_not_corrected")
+
+class RegionMappingOutputSpect(TraitedSpec):
+    out_file = File(exists = True)
+
+class RegionMapping(object):
+    input_spec = RegionMappingInputSpect
+    output_spec = RegionMappingOutputSpect
+
+    def _run_interface(self, runtime):
+        d = dict(rl=self.inputs.rl,
+                 pial=self.inputs.pial,
+                 ref_table=self.inputs.ref_table,
+                 vertices_low=self.inputs.vertices_low,
+                 triangles_low=self.inputs.triangles_low,
+                 vertices_high=self.inputs.vertices_high,
+                 out_file=self.inputs.out_file)
+        #this is your MATLAB code template
+        script = Template("""rl = ‘$rl';
+pial.asc = ‘$pial';
+_ref_table.txt = '$ref_table';
+_vertices_low.txt = '$vertices_low';
+_triangles_low.txt = '$triangles_low';
+vertices_high.txt = '$vertices_high';
+_region_mapping_low_not_corrected.txt = '$out_file'
+run region_mapping.m; quit;
+""").substitute(d)
+        
