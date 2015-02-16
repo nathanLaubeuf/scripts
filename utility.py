@@ -170,9 +170,7 @@ class RegionMappingInputSpect(BaseInterfaceInputSpec):
     rl = File(desc = "right or left hemisphere",
               exists = True,
               mandatory = True)
-    pial = File(desc = "pial file",
-                exists = True,
-                mandatory = True)
+    aparc_annot = File(exists = True, mandatory = True)
     ref_table = File(exists = True, mandatory = True)
     vertices_low = File(exists = True, mandatory = True)
     triangles_low = File(exists = True, mandatory = True)
@@ -188,20 +186,28 @@ class RegionMapping(object):
 
     def _run_interface(self, runtime):
         d = dict(rl=self.inputs.rl,
-                 pial=self.inputs.pial,
-                 ref_table=self.inputs.ref_table,
                  vertices_low=self.inputs.vertices_low,
                  triangles_low=self.inputs.triangles_low,
                  vertices_high=self.inputs.vertices_high,
+                 ref_table=self.inputs.ref_table,
+                 aparc_annot=self.inputs.aparc_annot
                  out_file=self.inputs.out_file)
         #this is your MATLAB code template
         script = Template("""rl = ‘$rl';
-pial.asc = ‘$pial';
-_ref_table.txt = '$ref_table';
-_vertices_low.txt = '$vertices_low';
-_triangles_low.txt = '$triangles_low';
-vertices_high.txt = '$vertices_high';
-_region_mapping_low_not_corrected.txt = '$out_file'
-run region_mapping.m; quit;
+vertices_low = '$vertices_low';
+triangles_low = '$triangles_low';
+vertices_high = '$vertices_high';
+ref_table = '$ref_table';
+aparc_annot = '$aparc_annot';
+out_file = '$out_file';
+region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_table, aparc_annot, out_file); quit;
 """).substitute(d)
+        mlab = MatlabCommand(script=script, mfile=True)
+        result = mlab.run()
+        return result.runtime
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['out_file'] = os.path.abspath(self.inputs.out_file)
+        return outputs
         
