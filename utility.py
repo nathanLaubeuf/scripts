@@ -94,7 +94,7 @@ def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl
 def reunify_both_regions(rh_region_mapping, lh_region_mapping, rh_vertices, lh_vertices, rh_triangles, lh_triangles):
     import os
     import numpy as np
-    lh_reg_map = np.loadtxt(lh_region_mapping))
+    lh_reg_map = np.loadtxt(lh_region_mapping)
     lh_vert = np.loadtxt(lh_vertices)
     lh_trian = np.loadtxt(lh_triangles)
     rh_reg_map = np.loadtxt(rh_region_mapping)
