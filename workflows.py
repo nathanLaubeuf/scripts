@@ -23,10 +23,6 @@ def ReconAll(name='ReconAll'):
 
 
 def Surface(name='surface'):
-    inputnode_rl = pe.Node(interface=niu.IdentityInterface(fields=['rh','lh']), name='inputnode_rl')
-    inputnode_rl.inputs.rh = 'rh'
-    inputnode_rl.inputs.lh = 'lh'
-    inputnode_rl.itterables = ("rl", ['rh','lh'])
     inputnode = pe.Node(interface=niu.IdentityInterface(fields=['pial', 'annot', 'ref_tables','rl']), name='inputnode')
     pial2asc = pe.Node(interface=fs.utils.MRIsConvert(), name='pial2asc')
     pial2asc.inputs.normal = True
