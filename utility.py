@@ -1,4 +1,5 @@
-from nipype.interfaces.base import CommandLineInputSpec, CommandLine, TraitedSpec, File, BaseInterfaceInputSpec
+from nipype.interfaces.base import CommandLineInputSpec, CommandLine, TraitedSpec, File, BaseInterfaceInputSpec, traits, BaseInterface
+from nipype.utils.filemanip import fname_presuffix
 
 def extract_high(surface, rl):
     """Extracting vertices and triangles"""
@@ -90,15 +91,15 @@ def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl
     np.savetxt(rl + '_region_mapping_low.txt', new_texture)
     return os.path.abspath(rl + '_region_mapping_low.txt')
 
-def reunify_both_regions(region_mapping_list, vertices_list, triangles_list, rl):
+def reunify_both_regions(rh_region_mapping, lh_region_mapping, rh_vertices, lh_vertices, rh_triangles, lh_triangles):
     import os
     import numpy as np
-    lh_reg_map = np.loadtxt(region_mapping_list([0]))
-    lh_vert = np.loadtxt(vertices_list[0])
-    lh_trian = np.loadtxt(triangles_list[0])
-    rh_reg_map = np.loadtxt(region_mapping_list[1])
-    rh_vert = np.loadtxt(vertices_list[1])
-    rh_trian = np.loadtxt(triangles_list[1])
+    lh_reg_map = np.loadtxt(lh_region_mapping))
+    lh_vert = np.loadtxt(lh_vertices)
+    lh_trian = np.loadtxt(lh_triangles)
+    rh_reg_map = np.loadtxt(rh_region_mapping)
+    rh_vert = np.loadtxt(rh_vertices)
+    rh_trian = np.loadtxt(rh_triangles)
     vertices = np.vstack([lh_vert, rh_vert])
     triangles = np.vstack([lh_trian,  rh_trian + lh_vert.shape[0]])
     region_mapping = np.hstack([lh_reg_map, rh_reg_map])
@@ -172,20 +173,18 @@ class Remesher(CommandLine):
 
 ### RegionMapping wrapper
 class RegionMappingInputSpect(BaseInterfaceInputSpec):
-    rl = File(desc = "right or left hemisphere",
-              exists = True,
-              mandatory = True)
+    rl = traits.Str(mandatory=True,desc=("right or left hemisphere"))
     aparc_annot = File(exists = True, mandatory = True)
     ref_tables = File(exists = True, mandatory = True)
     vertices_low = File(exists = True, mandatory = True)
     triangles_low = File(exists = True, mandatory = True)
     vertices_high = File(exists = True, mandatory = True)
-    out_file = File(rl + '_region_mapping_low.txt', desc ="region_mapping_not_corrected")
+    out_file = File(exists = True)
 
 class RegionMappingOutputSpect(TraitedSpec):
     out_file = File(exists = True)
 
-class RegionMapping(object):
+class RegionMapping(BaseInterface):
     input_spec = RegionMappingInputSpect
     output_spec = RegionMappingOutputSpect
 
@@ -213,7 +212,7 @@ class RegionMapping(object):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs['out_file'] = os.path.abspath(self.inputs.out_file)
+        outputs['out_file'] = os.path.abspath(fname_presuffix("",  prefix=rl, suffix='_region_mapping_low.txt'))
         return outputs
 ### End of RegionMapping wrapper
 
