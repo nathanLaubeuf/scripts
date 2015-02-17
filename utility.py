@@ -1,6 +1,7 @@
 from nipype.interfaces.base import CommandLineInputSpec, CommandLine, TraitedSpec, File, BaseInterfaceInputSpec
 
 def extract_high(surface, rl):
+    """Extracting vertices and triangles"""
     import numpy as np
     import os
     name_file = rl + surface
@@ -21,6 +22,7 @@ def extract_high(surface, rl):
     return (map(os.path.abspath, [rl + '_vertices_high.txt', rl + '_triangles_high.txt']))
 
 def txt2off(vertices, triangles, rl):
+    """converting txt files to off files for the remesher function"""
     import numpy as np
     import os
 
@@ -38,6 +40,7 @@ def txt2off(vertices, triangles, rl):
     return os.path.abspath(rl + '_high.off')
 
 def off2txt(surface, rl):
+    """reconvert off file to txt files after remeshing"""
     import numpy as np
     import os
 
@@ -58,7 +61,7 @@ def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl
                            region_mapping_corr=0.42):
     import os
     import sys
-    region_mapping_corr = float(os.environ['region_mapping_corr'])
+    #region_mapping_corr = float(os.environ['region_mapping_corr'])
     from copy import deepcopy
     import numpy as np
     from collections import Counter
@@ -140,6 +143,7 @@ class Aseg2Srf(CommandLine):
                                        for i in  label_list]
         return outputs
 
+### Remesher wrapper
 class RemesherInputSpec(CommandLineInputSpec):
     in_file = File(desc = "Input surface", 
                    argstr ='%s', 
@@ -162,16 +166,17 @@ class Remesher(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['Remeshed surface'] = os.path.abspath(input_spec.out_file)
+        outputs['out_file'] = os.path.abspath(input_spec.out_file)
         return outputs
-    
+### End of Remesher wrapper    
 
+### RegionMapping wrapper
 class RegionMappingInputSpect(BaseInterfaceInputSpec):
     rl = File(desc = "right or left hemisphere",
               exists = True,
               mandatory = True)
     aparc_annot = File(exists = True, mandatory = True)
-    ref_table = File(exists = True, mandatory = True)
+    ref_tables = File(exists = True, mandatory = True)
     vertices_low = File(exists = True, mandatory = True)
     triangles_low = File(exists = True, mandatory = True)
     vertices_high = File(exists = True, mandatory = True)
@@ -189,19 +194,19 @@ class RegionMapping(object):
                  vertices_low=self.inputs.vertices_low,
                  triangles_low=self.inputs.triangles_low,
                  vertices_high=self.inputs.vertices_high,
-                 ref_table=self.inputs.ref_table,
-                 aparc_annot=self.inputs.aparc_annot
+                 ref_tables=self.inputs.ref_tables,
+                 aparc_annot=self.inputs.aparc_annot,
                  out_file=self.inputs.out_file)
         #this is your MATLAB code template
-        script = Template("""rl = ‘$rl';
-vertices_low = '$vertices_low';
-triangles_low = '$triangles_low';
-vertices_high = '$vertices_high';
-ref_table = '$ref_table';
-aparc_annot = '$aparc_annot';
-out_file = '$out_file';
-region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_table, aparc_annot, out_file); quit;
-""").substitute(d)
+        script = Template("""rl = '$rl';
+            vertices_low = '$vertices_low';
+            triangles_low = '$triangles_low';
+            vertices_high = '$vertices_high';
+            ref_table = '$ref_table';
+            aparc_annot = '$aparc_annot';
+            out_file = '$out_file';
+            region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_table, aparc_annot, out_file); quit;
+            """).substitute(d)
         mlab = MatlabCommand(script=script, mfile=True)
         result = mlab.run()
         return result.runtime
@@ -210,4 +215,34 @@ region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_table, apar
         outputs = self._outputs().get()
         outputs['out_file'] = os.path.abspath(self.inputs.out_file)
         return outputs
-        
+### End of RegionMapping wrapper
+
+### check_region_mapping wrapper
+class CheckRegionMappingInputSpect(CommandLineInputSpec):
+    vertices_low = File(argstr ='%s', 
+                        exists = True, 
+                        mandatory = True,
+                        position = 0)
+    triangles_low = File(argstr ='%s', 
+                         exists = True, 
+                         mandatory = True,
+                         position = 1)
+    region_mapping_low = File(argstr ='%s', 
+                              exists = True, 
+                              mandatory = True,
+                              position = 2,
+                              name_source = ['vertices_low'])
+
+class CheckRegionMappingOutputSpect(TraitedSpec):
+    region_mapping_low = File(exists=True)
+
+class CheckRegionMapping(CommandLine):
+    input_spec = CheckRegionMappingInputSpect
+    output_spec = CheckRegionMappingOutputSpect
+    _cmd = 'python check_region_mapping_2.py'
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['region_mapping_low'] = os.path.abspath(input_spec.out_file)
+        return outputs
+### End of check_region_mapping wrapper      

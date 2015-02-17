@@ -23,36 +23,47 @@ def ReconAll(name='ReconAll'):
 
 
 def Surface(name='surface'):
-    inputnode = pe.Node(interface=niu.IdentityInterface(fields=['pial']), name='inputnode')
-    pial2asc = pe.MapNode(interface=fs.utils.MRIsConvert(), name='pial2asc', iterfield = ['surface', 'rl'])
+    inputnode = pe.Node(interface=niu.IdentityInterface(fields=['pial', 'annot', 'ref_tables','rl']), name='inputnode')
+    pial2asc = pe.Node(interface=fs.utils.MRIsConvert(), name='pial2asc')
+    pial2asc.inputs.normal = True
     extract_high = pe.Node(interface=niu.Function(input_names=['surface', 'rl'],
                                                   output_names=['vertices_high', 'triangles_high'],
                                                   function=su.extract_high), name='extract_high')
     txt2off = pe.Node(interface=niu.Function(input_names=['vertices', 'triangles', 'rl'],
-                                             output_names=['high.off'],
+                                             output_names=['out_file'],
                                              function=su.txt2off),name='txt2off')
-    remesher = pe.Node(interface=niu.Remesher(), name='remesher')
-    #wrapper needed, Remesher not in niu and coded in c++
+    remesher = pe.Node(interface=su.Remesher(), name='remesher')
     off2txt = pe.Node(interface=niu.Function(input_names=['surface', 'rl'],
                                              output_names=['vertices_low', 'triangles_low'],
                                              function=su.off2txt), name='off2txt')
-
-    region_mapping = pe.Node(interface=mlab.MatlabCommand("rl='lh';run region_mapping.m; quit;"))
-    #not so shure about that
+    region_mapping = pe.Node(interface=su.RegionMapping(),name=region_mapping)
     correct_region_mapping = pe.Node(interface=niu.Function(input_names=[
         'region_mapping_not_corrected', 'vertices', 'triangles', 'rl', 'region_mapping_corr'], 
         output_names = ['region_mapping_low'],
-        function=su.correct_region_mapping),name=correct_region_mapping)
-    check_region_mapping = pe.Node(interface=niu.CheckRegionMapping(), name='check_region_mapping') 
-    #CheckRegionMapping not in niu
+        function=su.correct_region_mapping(),
+        name='correct_region_mapping'))
+    check_region_mapping = pe.Node(interface=su.CheckRegionMapping(), name='check_region_mapping')
     reunify_both_regions = pe.Node(interface=su.reunify_both_regions(), name='reunify_both_regions')
 
     wf = pe.Workflow(name=name)
-
-    #connect workflow here
-
-
-
+    wf.connect([
+        (inputnode, pial2asc,[('pial','in_file')])
+        (inputnode, RegionMapping, [('annot', 'aparc_annot'),('ref_tables','ref_tables'),('rl','rl')]),
+        (inputnode, correct_region_mapping, [('rl','rl')]),
+        (inputnode, extract_high,[('rl','rl')]),
+        (inputnode, txt2off, [('rl','rl')]),
+        (inputnode, off2txt,[('rl','rl')]),
+        (pial2asc, extract_high, [('out_file','surface')]),
+        (extract_high, txt2off, [('vertices_high','vertices'),('triangles_high','triangles')])
+        (extract_high, region_mapping,[('vertices_high','vertices_high')]),
+        (txt2off, remesher, [('out_file','in_file')]),
+        (remesher, off2txt, [('out_file','surface')]),
+        (off2txt, region_mapping, [('vertices_low','vertices_low'),('triangles_low','triangles_low')]),
+        (off2txt, correct_region_mapping, [('vertices_low','vertices'),('triangles_low','triangles')]),
+        (off2txt, check_region_mapping, [('vertices_low','vertices_low'),('triangles_low','triangles_low')]),
+        (region_mapping, correct_region_mapping,[('out_file','region_mapping_not_corrected')]),
+        (correct_region_mapping, check_region_mapping, [('region_mapping_low','region_mapping_low')])
+        ])
     return wf
 
 
@@ -61,6 +72,7 @@ def SubcorticalSurface(name='subcorticalsurfaces'):
     inputnode = pe.Node(interface=niu.IdentityInterface(fields=['in_subject_id']), name='inputnode')
     aseg2srf = pe.Node(interface=su.Aseg2Srf(), name='aseg2srf')
     list_subcortical = pe.MapNode(interface=su.ListSubcortical(), name='list_subcortical', iterfield=['in_file'])
+    #ListSubcortical not in su
     outputnode = pe.MapNode(interface=niu.IdentityInterface(fields=['out_fields']), name='outputnode')
 
     wf = pe.Workflow(name=name)
