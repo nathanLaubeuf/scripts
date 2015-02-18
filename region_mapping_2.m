@@ -1,4 +1,4 @@
-function out_file = region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_table, aparc_annot, out_file)
+function out_file = region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_table, aparc_annot)
 
 	FREESURFER_HOME = getenv('FREESURFER_HOME')
 
@@ -26,5 +26,5 @@ function out_file = region_mapping_2(rl, vertices_low, triangles_low, vertices_h
 	end
 	not_found
 
-	save(out_file,'reg_map', '-ascii' ); 
+	save([rl, '_region_mapping_low_not_corrected.txt'],'reg_map', '-ascii' ); 
 end
