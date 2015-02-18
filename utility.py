@@ -1,5 +1,9 @@
-from nipype.interfaces.base import CommandLineInputSpec, CommandLine, TraitedSpec, File, BaseInterfaceInputSpec, traits, BaseInterface
-from nipype.utils.filemanip import fname_presuffix
+from nipype.interfaces.base import CommandLineInputSpec, CommandLine, TraitedSpec, File, BaseInterfaceInputSpec, traits, BaseInterface, isdefined
+from nipype.utils.filemanip import fname_presuffix, split_filename
+from nipype.interfaces.freesurfer.base import FSCommand, FSTraitedSpec
+import os
+
+
 
 def extract_high(surface, rl):
     """Extracting vertices and triangles"""
@@ -22,6 +26,10 @@ def extract_high(surface, rl):
 
     return (map(os.path.abspath, [rl + '_vertices_high.txt', rl + '_triangles_high.txt']))
 
+
+
+
+
 def txt2off(vertices, triangles, rl):
     """converting txt files to off files for the remesher function"""
     import numpy as np
@@ -40,6 +48,10 @@ def txt2off(vertices, triangles, rl):
      
     return os.path.abspath(rl + '_high.off')
 
+
+
+
+
 def off2txt(surface, rl):
     """reconvert off file to txt files after remeshing"""
     import numpy as np
@@ -57,6 +69,10 @@ def off2txt(surface, rl):
     np.savetxt(rl + '_vertices_low.off', vert, fmt='%.4f')
     np.savetxt(rl + '_triangles_low.off', tri, fmt='%d')
     return (map(os.path.abspath, [rl + '_vertices_high.txt', rl + '_triangles_high.txt']))
+
+
+
+
 
 def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl,
                            region_mapping_corr=0.42):
@@ -91,6 +107,10 @@ def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl
     np.savetxt(rl + '_region_mapping_low.txt', new_texture)
     return os.path.abspath(rl + '_region_mapping_low.txt')
 
+
+
+
+
 def reunify_both_regions(rh_region_mapping, lh_region_mapping, rh_vertices, lh_vertices, rh_triangles, lh_triangles):
     import os
     import numpy as np
@@ -109,16 +129,17 @@ def reunify_both_regions(rh_region_mapping, lh_region_mapping, rh_vertices, lh_v
     return (map(os.path.abspath(), ['region_mapping.txt', 'vertices.txt', 'triangles.txt']))
 
 
+
+
+
 class Aseg2SrfInputSpec(CommandLineInputSpec):
     in_subject_id = File(desc = "Subject FreeSurfer Id",
-                         argstr = '%d',
+                         argstr = '-s %d',
                          exists = True,
                          mandatory = True)
 
-
 class Aseg2SrfOutputSpec(TraitedSpec):
     out_subcortical_surf_list = File(desc = "Output subcortical surfaces", exists = True)
-
 
 class Aseg2Srf(CommandLine):
     input_spec = Aseg2SrfInputSpec
@@ -144,6 +165,11 @@ class Aseg2Srf(CommandLine):
                                        for i in  label_list]
         return outputs
 
+
+
+
+
+
 ### Remesher wrapper
 class RemesherInputSpec(CommandLineInputSpec):
     in_file = File(desc = "Input surface", 
@@ -164,12 +190,17 @@ class Remesher(CommandLine):
     input_spec = RemesherInputSpec
     output_spec = RemesherOutputSpec
     _cmd = "./remesher/cmdremesher/cmdremesher"
-
+##can't find cmdremesher
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs['out_file'] = os.path.abspath(input_spec.out_file)
         return outputs
 ### End of Remesher wrapper    
+
+
+
+
+
 
 ### RegionMapping wrapper
 class RegionMappingInputSpect(BaseInterfaceInputSpec):
@@ -179,7 +210,6 @@ class RegionMappingInputSpect(BaseInterfaceInputSpec):
     vertices_low = File(exists = True, mandatory = True)
     triangles_low = File(exists = True, mandatory = True)
     vertices_high = File(exists = True, mandatory = True)
-    out_file = File(exists = True)
 
 class RegionMappingOutputSpect(TraitedSpec):
     out_file = File(exists = True)
@@ -211,10 +241,14 @@ class RegionMapping(BaseInterface):
         return result.runtime
 
     def _list_outputs(self):
-        outputs = self._outputs().get()
-        outputs['out_file'] = os.path.abspath(fname_presuffix("",  prefix=rl, suffix='_region_mapping_low.txt'))
+        outputs = self.output_spec().get()
+        outputs['out_file'] = os.path.abspath(fname_presuffix("",  prefix=rl, suffix='_region_mapping_low_not_corrected.txt'))
         return outputs
 ### End of RegionMapping wrapper
+
+
+
+
 
 ### check_region_mapping wrapper
 class CheckRegionMappingInputSpect(CommandLineInputSpec):
@@ -242,6 +276,102 @@ class CheckRegionMapping(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['region_mapping_low'] = os.path.abspath(input_spec.out_file)
+        outputs['region_mapping_low'] = self.inputs.region_mapping_low
         return outputs
 ### End of check_region_mapping wrapper      
+
+
+
+
+### Corrected MRIsConvert
+class MRIsConvertInputSpec(FSTraitedSpec):
+    """
+    Uses Freesurfer's mris_convert to convert surface files to various formats
+    """
+    annot_file = File(exists=True, argstr="--annot %s",
+    desc="input is annotation or gifti label data")
+
+    parcstats_file = File(exists=True, argstr="--parcstats %s",
+    desc="infile is name of text file containing label/val pairs")
+
+    label_file = File(exists=True, argstr="--label %s",
+    desc="infile is .label file, label is name of this label")
+
+    scalarcurv_file = File(exists=True, argstr="-c %s",
+    desc="input is scalar curv overlay file (must still specify surface)")
+
+    functional_file = File(exists=True, argstr="-f %s",
+    desc="input is functional time-series or other multi-frame data (must specify surface)")
+
+    labelstats_outfile = File(exists=False, argstr="--labelstats %s",
+    desc="outfile is name of gifti file to which label stats will be written")
+
+    patch = traits.Bool(argstr="-p", desc="input is a patch, not a full surface")
+    rescale = traits.Bool(argstr="-r", desc="rescale vertex xyz so total area is same as group average")
+    normal = traits.Bool(argstr="-n", desc="output is an ascii file where vertex data")
+    xyz_ascii = traits.Bool(argstr="-a", desc="Print only surface xyz to ascii file")
+    vertex = traits.Bool(argstr="-v", desc="Writes out neighbors of a vertex in each row")
+
+    scale = traits.Float(argstr="-s %.3f", desc="scale vertex xyz by scale")
+    dataarray_num = traits.Int(argstr="--da_num %d", desc="if input is gifti, 'num' specifies which data array to use")
+
+    talairachxfm_subjid = traits.String(argstr="-t %s", desc="apply talairach xfm of subject to vertex xyz")
+    origname = traits.String(argstr="-o %s", desc="read orig positions")
+
+    in_file = File(exists=True, mandatory=True, position=-2, argstr='%s', desc='File to read/convert')
+    out_file = File(argstr='./%s', position=-1, genfile=True, desc='output filename or True to generate one')
+    #Not really sure why the ./ is necessary but the module fails without it
+
+    out_datatype = traits.Enum("ico", "tri", "stl", "vtk", "gii", "mgh", "mgz", "asc", mandatory=True,
+    desc="These file formats are supported:  ASCII:       .asc" \
+    "ICO: .ico, .tri GEO: .geo STL: .stl VTK: .vtk GIFTI: .gii MGH surface-encoded 'volume': .mgh, .mgz")
+
+
+class MRIsConvertOutputSpec(TraitedSpec):
+    """
+    Uses Freesurfer's mris_convert to convert surface files to various formats
+    """
+    converted = File(exists=True, desc='converted output surface')
+
+
+class MRIsConvert(FSCommand):
+    """
+    Uses Freesurfer's mris_convert to convert surface files to various formats
+    Example
+    -------
+    >>> import nipype.interfaces.freesurfer as fs
+    >>> mris = fs.MRIsConvert()
+    >>> mris.inputs.in_file = 'lh.pial'
+    >>> mris.inputs.out_datatype = 'gii'
+    >>> mris.run() # doctest: +SKIP
+    """
+    _cmd = 'mris_convert'
+    input_spec = MRIsConvertInputSpec
+    output_spec = MRIsConvertOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["converted"] = os.path.abspath(self._gen_outfilename())
+        return outputs
+
+    def _gen_filename(self, name):
+        if name is 'out_file':
+            return self._gen_outfilename()
+        else:
+            return None
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.annot_file):
+            _, name, ext = split_filename(self.inputs.annot_file)
+        elif isdefined(self.inputs.parcstats_file):
+            _, name, ext = split_filename(self.inputs.parcstats_file)
+        elif isdefined(self.inputs.label_file):
+            _, name, ext = split_filename(self.inputs.label_file)
+        elif isdefined(self.inputs.scalarcurv_file):
+            _, name, ext = split_filename(self.inputs.scalarcurv_file)
+        elif isdefined(self.inputs.functional_file):
+            _, name, ext = split_filename(self.inputs.functional_file)
+        elif isdefined(self.inputs.in_file):
+            _, name, ext = split_filename(self.inputs.in_file)
+
+        return name + ext + "_converted." + self.inputs.out_datatype
