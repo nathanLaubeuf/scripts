@@ -66,9 +66,9 @@ def off2txt(surface, rl):
     vert = vert[:int(num[0]), :]
     tri = np.loadtxt(surface, skiprows=int(num[0])+2, usecols=(1,2,3))  
 
-    np.savetxt(rl + '_vertices_low.off', vert, fmt='%.4f')
-    np.savetxt(rl + '_triangles_low.off', tri, fmt='%d')
-    return (map(os.path.abspath, [rl + '_vertices_high.txt', rl + '_triangles_high.txt']))
+    np.savetxt(rl + '_vertices_low.txt', vert, fmt='%.4f')
+    np.savetxt(rl + '_triangles_low.txt', tri, fmt='%d')
+    return (map(os.path.abspath, [rl + '_vertices_low.txt', rl + '_triangles_low.txt']))
 
 
 
@@ -170,17 +170,17 @@ class Aseg2Srf(CommandLine):
 
 
 
-### Remesher wrapper
+### Remesher wrapper (Tested)
 class RemesherInputSpec(CommandLineInputSpec):
     in_file = File(desc = "Input surface", 
                    argstr ='%s', 
                    exists = True, 
                    mandatory = True,
                    position = 0)
-    out_file = File(desc = "Remeshed surface", 
-                    exists = True, 
-                    name_source = ['in_file'], 
-                    argstr = '%s',
+    out_file = File(desc = "Remeshed surface",
+                    argstr ='%s',
+                    exists = True,
+                    genfile=True,
                     position = 1)
 
 class RemesherOutputSpec(TraitedSpec):
@@ -189,14 +189,24 @@ class RemesherOutputSpec(TraitedSpec):
 class Remesher(CommandLine):
     input_spec = RemesherInputSpec
     output_spec = RemesherOutputSpec
-    _cmd = "./remesher/cmdremesher/cmdremesher"
-##can't find cmdremesher
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['out_file'] = os.path.abspath(input_spec.out_file)
-        return outputs
-### End of Remesher wrapper    
+    _cmd = "/home/user/scripts3/remesher/cmdremesher/cmdremesher"
 
+    def _gen_filename(self, name):
+        if name is 'out_file':
+            return self._gen_outfilename()
+        else:
+            return None
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.in_file):
+            _, name, ext = split_filename(self.inputs.in_file)
+            return name[:2] + "_low" + ext 
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['out_file'] = os.path.abspath(self._gen_outfilename())
+        return outputs
+### End of Remesher wrapper  
 
 
 
@@ -224,8 +234,7 @@ class RegionMapping(BaseInterface):
                  triangles_low=self.inputs.triangles_low,
                  vertices_high=self.inputs.vertices_high,
                  ref_tables=self.inputs.ref_tables,
-                 aparc_annot=self.inputs.aparc_annot,
-                 out_file=self.inputs.out_file)
+                 aparc_annot=self.inputs.aparc_annot)
         #this is your MATLAB code template
         script = Template("""rl = '$rl';
             vertices_low = '$vertices_low';
@@ -233,8 +242,7 @@ class RegionMapping(BaseInterface):
             vertices_high = '$vertices_high';
             ref_table = '$ref_table';
             aparc_annot = '$aparc_annot';
-            out_file = '$out_file';
-            region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_table, aparc_annot, out_file); quit;
+            region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_table, aparc_annot); quit;
             """).substitute(d)
         mlab = MatlabCommand(script=script, mfile=True)
         result = mlab.run()
@@ -283,7 +291,7 @@ class CheckRegionMapping(CommandLine):
 
 
 
-### Corrected MRIsConvert
+### Corrected MRIsConvert class (Tested)
 class MRIsConvertInputSpec(FSTraitedSpec):
     """
     Uses Freesurfer's mris_convert to convert surface files to various formats
@@ -375,3 +383,4 @@ class MRIsConvert(FSCommand):
             _, name, ext = split_filename(self.inputs.in_file)
 
         return name + ext + "_converted." + self.inputs.out_datatype
+### End of corrected MRIsConvert class
