@@ -1,4 +1,4 @@
-function out_file = region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_table, aparc_annot)
+function out_file = region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_tables, aparc_annot)
 
 	FREESURFER_HOME = getenv('FREESURFER_HOME')
 
@@ -6,7 +6,7 @@ function out_file = region_mapping_2(rl, vertices_low, triangles_low, vertices_h
 	    addpath([FREESURFER_HOME, '/matlab'])
 	end
 
-	corr_right = load(ref_table);
+	corr_right = load(ref_tables);
 	[v, L, ct] = read_annotation(aparc_annot);
 	a = load(vertices_low);
 	b = load(triangles_low);
@@ -26,5 +26,5 @@ function out_file = region_mapping_2(rl, vertices_low, triangles_low, vertices_h
 	end
 	not_found
 
-	save([rl, '_region_mapping_low_not_corrected.txt'],'reg_map', '-ascii' ); 
+	save([rl ,'_region_mapping_low_not_corrected.txt'],'reg_map', '-ascii' );
 end

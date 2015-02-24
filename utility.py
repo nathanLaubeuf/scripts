@@ -1,7 +1,9 @@
 from nipype.interfaces.base import CommandLineInputSpec, CommandLine, TraitedSpec, File, BaseInterfaceInputSpec, traits, BaseInterface, isdefined
 from nipype.utils.filemanip import fname_presuffix, split_filename
 from nipype.interfaces.freesurfer.base import FSCommand, FSTraitedSpec
+from nipype.interfaces.matlab import MatlabCommand
 import os
+from string import Template
 
 
 
@@ -212,7 +214,7 @@ class Remesher(CommandLine):
 
 
 
-### RegionMapping wrapper
+### RegionMapping wrapper (tested)
 class RegionMappingInputSpect(BaseInterfaceInputSpec):
     rl = traits.Str(mandatory=True,desc=("right or left hemisphere"))
     aparc_annot = File(exists = True, mandatory = True)
@@ -229,28 +231,30 @@ class RegionMapping(BaseInterface):
     output_spec = RegionMappingOutputSpect
 
     def _run_interface(self, runtime):
-        d = dict(rl=self.inputs.rl,
-                 vertices_low=self.inputs.vertices_low,
-                 triangles_low=self.inputs.triangles_low,
-                 vertices_high=self.inputs.vertices_high,
-                 ref_tables=self.inputs.ref_tables,
-                 aparc_annot=self.inputs.aparc_annot)
-        #this is your MATLAB code template
-        script = Template("""rl = '$rl';
+        d = dict(rl = self.inputs.rl,
+                 vertices_low = self.inputs.vertices_low,
+                 triangles_low = self.inputs.triangles_low,
+                 vertices_high = self.inputs.vertices_high,
+                 ref_tables = self.inputs.ref_tables,
+                 aparc_annot = self.inputs.aparc_annot)
+        script = Template("""
+            rl = '$rl'
             vertices_low = '$vertices_low';
             triangles_low = '$triangles_low';
             vertices_high = '$vertices_high';
-            ref_table = '$ref_table';
+            ref_tables = '$ref_tables';
             aparc_annot = '$aparc_annot';
-            region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_table, aparc_annot); quit;
-            """).substitute(d)
+            addpath('/home/user/scripts3')
+            region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_tables, aparc_annot); 
+            quit;
+            """).safe_substitute(d)
         mlab = MatlabCommand(script=script, mfile=True)
         result = mlab.run()
         return result.runtime
-
-    def _list_outputs(self):
+        
+def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['out_file'] = os.path.abspath(fname_presuffix("",  prefix=rl, suffix='_region_mapping_low_not_corrected.txt'))
+        outputs['out_file'] = os.path.abspath(fname_presuffix("",  prefix=self.inputs.rl, suffix='_region_mapping_low_not_corrected.txt'))
         return outputs
 ### End of RegionMapping wrapper
 
