@@ -1,7 +1,7 @@
 import os
 import sys
 #PRD = os.environ['PRD']
-#CHECK = os.environ['CHECK']
+#CHECK = 'yes'
 if "DISPLAY" in os.environ:
     DISPLAY = os.environ['DISPLAY']
 else:
@@ -124,32 +124,32 @@ if __name__ == '__main__':
         for iwrong in wrong_labels:
             # TODO: handle more than two components
             (V1, V2) = find_both_components(texture, vert, trian, iwrong)
-            if CHECK =="yes" and len(DISPLAY)>0:
-                print "checking"
-                check_region_mapping(texture, vert, trian, iwrong)
-                i=0
-                while True and i<10:
-                    try:
-                        choice_user = raw_input("""Do you want to get rid of region with:
-                                            1) {0} nodes
-                                            2) {1} nodes
-                                            3) continue the pipeline anyway
-                                            (answer: 1, 2, or 3)? \n""".format(len(V1), len(V2)))
-                        print "you chose " + choice_user
-
-                        choice_user = int(choice_user)
-                        if choice_user not in [1, 2, 3]:
-                            raise ValueError
-                        break 
-                    except ValueError:
-                        print 'please choose 1, 2 or 3'
-                        i += 1
-                        continue
-                else:
-                    print 'failure total, no check mode'
-            else:
-                print "no check, selecting automatically the smallest components"
-                choice_user=argmin((len(V1), len(V2)))+1
+#            if CHECK =="yes" and len(DISPLAY)>0:
+ #               print "checking"
+  #              check_region_mapping(texture, vert, trian, iwrong)
+   #             i=0
+    #            while True and i<10:
+     #               try:
+      #                  choice_user = raw_input("""Do you want to get rid of region with:
+       #                                     1) {0} nodes
+        #                                    2) {1} nodes
+         #                                   3) continue the pipeline anyway
+          #                                  (answer: 1, 2, or 3)? \n""".format(len(V1), len(V2)))
+           #             print "you chose " + choice_user
+#
+ #                       choice_user = int(choice_user)
+  #                      if choice_user not in [1, 2, 3]:
+   #                         raise ValueError
+    #                    break 
+     #               except ValueError:
+      #                  print 'please choose 1, 2 or 3'
+       #                 i += 1
+        #                continue
+         #       else:
+          #          print 'failure total, no check mode'
+           # else:
+            print "no check, selecting automatically the smallest components"
+            choice_user=argmin((len(V1), len(V2)))+1
             if choice_user==3:
                 print "keep that correction"
                 savetxt(texture_file, new_texture)
