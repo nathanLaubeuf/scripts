@@ -128,7 +128,7 @@ def reunify_both_regions(rh_region_mapping, lh_region_mapping, rh_vertices, lh_v
     np.savetxt('region_mapping.txt', region_mapping, fmt='%d', newline=" ")
     np.savetxt('vertices.txt', vertices, fmt='%.2f')
     np.savetxt('triangles.txt', triangles, fmt='%d %d %d')
-    return (map(os.path.abspath(), ['region_mapping.txt', 'vertices.txt', 'triangles.txt']))
+    return (map(os.path.abspath, ['region_mapping.txt', 'vertices.txt', 'triangles.txt']))
 
 
 
@@ -192,7 +192,7 @@ class Remesher(CommandLine):
     input_spec = RemesherInputSpec
     output_spec = RemesherOutputSpec
     _cmd = "/home/user/scripts3/remesher/cmdremesher/cmdremesher"
-
+    ##changes in _cmd are needed to take into account specific achitectures
     def _gen_filename(self, name):
         if name is 'out_file':
             return self._gen_outfilename()
@@ -244,15 +244,16 @@ class RegionMapping(BaseInterface):
             vertices_high = '$vertices_high';
             ref_tables = '$ref_tables';
             aparc_annot = '$aparc_annot';
-            addpath('/home/user/scripts3')
+            addpath('/home/user/scripts3');
             region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_tables, aparc_annot); 
             quit;
             """).safe_substitute(d)
+        ##changes needed for addpath (specific architecture)
         mlab = MatlabCommand(script=script, mfile=True)
         result = mlab.run()
         return result.runtime
-        
-def _list_outputs(self):
+
+    def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs['out_file'] = os.path.abspath(fname_presuffix("",  prefix=self.inputs.rl, suffix='_region_mapping_low_not_corrected.txt'))
         return outputs
@@ -275,8 +276,7 @@ class CheckRegionMappingInputSpect(CommandLineInputSpec):
     region_mapping_low = File(argstr ='%s', 
                               exists = True, 
                               mandatory = True,
-                              position = 2,
-                              name_source = ['vertices_low'])
+                              position = 2)
 
 class CheckRegionMappingOutputSpect(TraitedSpec):
     region_mapping_low = File(exists=True)
@@ -284,8 +284,8 @@ class CheckRegionMappingOutputSpect(TraitedSpec):
 class CheckRegionMapping(CommandLine):
     input_spec = CheckRegionMappingInputSpect
     output_spec = CheckRegionMappingOutputSpect
-    _cmd = 'python check_region_mapping_2.py'
-
+    _cmd = 'python /home/user/scripts3/check_region_mapping_2.py'
+    ##changes in _cmd are needed to take into account specific achitectures
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs['region_mapping_low'] = self.inputs.region_mapping_low
