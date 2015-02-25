@@ -31,7 +31,10 @@ def ReconAll(name='ReconAll'):
 
 
 def Surface(name='surface'):
-
+    """
+    Surface workflow
+    Generate vertices, triangles and region mapping files 
+    """
     inputnode = pe.Node(interface=niu.IdentityInterface(fields=['pial_rh', 'annot_rh', 'ref_tables_rh', 'pial_lh', 'annot_lh', 'ref_tables_lh','rh', 'lh']), name='inputnode')
     inputnode.inputs.rh ='rh'
     inputnode.inputs.lh ='lh'
@@ -99,13 +102,13 @@ def Surface(name='surface'):
         (wfrh,reunify_both_regions,[('check_region_mapping.region_mapping_low', 'rh_region_mapping')]),
         (wflh,reunify_both_regions,[('check_region_mapping.region_mapping_low', 'lh_region_mapping')]),
         (wfrh,reunify_both_regions,[('off2txt.vertices_low', 'rh_vertices')]),
-        (wflh,reunify_both_regions,[('off2txt.vertices_low', 'lh_vertices_list')]),
+        (wflh,reunify_both_regions,[('off2txt.vertices_low', 'lh_vertices')]),
         (wfrh,reunify_both_regions,[('off2txt.triangles_low', 'rh_triangles')]),
         (wflh,reunify_both_regions,[('off2txt.triangles_low', 'lh_triangles')])
         ])
     
     return wf
-    #tested with write_graph
+    #tested
 
 
 
@@ -132,7 +135,7 @@ def SubcorticalSurface(name='subcorticalsurfaces'):
 
 
 def Connectivity(name="connectivity"):
-    #experiencing issues with mrtrix3
+    #eissues with mrtrix3
     inputnode = pe.Node(interface=niu.IdentityInterface(fields=['in_file']), name='inputnode')
     convert_dicom2nii = pe.Node(interface=mrt.MRConvert(), name='convert_dicom2nii')
     extract_bvecs_bvals = pe.Node(interface=mtr3.utils.MRInfo(), name='extract_bvecs_bvals')
