@@ -8,10 +8,9 @@ from string import Template
 
 
 def extract_high(surface, rl):
-    """Extracting vertices and triangles"""
+    """Extracting vertices_high and triangles_high from asc file"""
     import numpy as np
     import os
-    name_file = rl + surface
     with open(surface, 'r') as f:
         f.readline()
         nb_vert = f.readline().split(' ')[0]
@@ -33,7 +32,7 @@ def extract_high(surface, rl):
 
 
 def txt2off(vertices, triangles, rl):
-    """converting txt files to off files for the remesher function"""
+    """converting txt files to off file for the remesher function"""
     import numpy as np
     import os
 
@@ -55,7 +54,7 @@ def txt2off(vertices, triangles, rl):
 
 
 def off2txt(surface, rl):
-    """reconvert off file to txt files after remeshing"""
+    """convert off file back to txt files"""
     import numpy as np
     import os
 
@@ -78,6 +77,7 @@ def off2txt(surface, rl):
 
 def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl,
                            region_mapping_corr=0.42):
+    """correcting region_mapping_not_corrected, saving corected version as rl_region_mapping_low.txt"""
     import os
     import sys
     #region_mapping_corr = float(os.environ['region_mapping_corr'])
@@ -114,6 +114,7 @@ def correct_region_mapping(region_mapping_not_corrected, vertices, triangles, rl
 
 
 def reunify_both_regions(rh_region_mapping, lh_region_mapping, rh_vertices, lh_vertices, rh_triangles, lh_triangles):
+    """merging right and left hemispheres region_mapping_low, vertices_low and triangles_low files"""
     import os
     import numpy as np
     lh_reg_map = np.loadtxt(lh_region_mapping)
@@ -189,10 +190,14 @@ class RemesherOutputSpec(TraitedSpec):
     out_file = File(desc = "Remeshed surface", exists = True)
 
 class Remesher(CommandLine):
+    """
+    Call remesher command 
+    For input rh_high.txt will return output rh_low.txt
+    """
     input_spec = RemesherInputSpec
     output_spec = RemesherOutputSpec
     _cmd = "/home/user/scripts3/remesher/cmdremesher/cmdremesher"
-    ##changes in _cmd are needed to take into account specific achitectures
+    #_cmd = scripts_dir + "/remesher/cmdremesher/cmdremesher"
     def _gen_filename(self, name):
         if name is 'out_file':
             return self._gen_outfilename()
@@ -227,6 +232,9 @@ class RegionMappingOutputSpect(TraitedSpec):
     out_file = File(exists = True)
 
 class RegionMapping(BaseInterface):
+    """
+    Generate a first region_mapping txt file using the region_mapping_2 matlab function  
+    """
     input_spec = RegionMappingInputSpect
     output_spec = RegionMappingOutputSpect
 
@@ -263,7 +271,7 @@ class RegionMapping(BaseInterface):
 
 
 
-### check_region_mapping wrapper
+### check_region_mapping wrapper (tested)
 class CheckRegionMappingInputSpect(CommandLineInputSpec):
     vertices_low = File(argstr ='%s', 
                         exists = True, 
@@ -285,7 +293,8 @@ class CheckRegionMapping(CommandLine):
     input_spec = CheckRegionMappingInputSpect
     output_spec = CheckRegionMappingOutputSpect
     _cmd = 'python /home/user/scripts3/check_region_mapping_2.py'
-    ##changes in _cmd are needed to take into account specific achitectures
+    #_cmd = Template("""python '$path'/check_region_mapping_2.py""").safe_substitute(path = scripts_dir)
+    _terminal_output = 'stream'
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs['region_mapping_low'] = self.inputs.region_mapping_low
@@ -388,3 +397,5 @@ class MRIsConvert(FSCommand):
 
         return name + ext + "_converted." + self.inputs.out_datatype
 ### End of corrected MRIsConvert class
+
+
