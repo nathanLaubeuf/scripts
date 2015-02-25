@@ -27,7 +27,7 @@ def breadth_first_search(iposi, itrian, ilab):
     return V
 
 def calculate_connected(texture, vert, trian):
-    "find if the regions are connected components using Breadth-first seach"
+    "find if the regions are connected components using breadth_first_search"
     labels = np.unique(texture) 
     res = []
     for ilab in labels:
@@ -80,6 +80,7 @@ def correct_sub_region(texture, trian, Vw):
 
 def check_region_mapping(texture, vert, trian, ilab):
     "drawing the region"
+    #can't be done in nipype
     ipos = np.nonzero(texture==ilab)
     itrian=[]
     for itri in ipos[0].tolist():
@@ -124,30 +125,31 @@ if __name__ == '__main__':
         for iwrong in wrong_labels:
             # TODO: handle more than two components
             (V1, V2) = find_both_components(texture, vert, trian, iwrong)
-#            if CHECK =="yes" and len(DISPLAY)>0:
- #               print "checking"
-  #              check_region_mapping(texture, vert, trian, iwrong)
-   #             i=0
-    #            while True and i<10:
-     #               try:
-      #                  choice_user = raw_input("""Do you want to get rid of region with:
-       #                                     1) {0} nodes
-        #                                    2) {1} nodes
-         #                                   3) continue the pipeline anyway
-          #                                  (answer: 1, 2, or 3)? \n""".format(len(V1), len(V2)))
-           #             print "you chose " + choice_user
-#
- #                       choice_user = int(choice_user)
-  #                      if choice_user not in [1, 2, 3]:
-   #                         raise ValueError
-    #                    break 
-     #               except ValueError:
-      #                  print 'please choose 1, 2 or 3'
-       #                 i += 1
-        #                continue
-         #       else:
-          #          print 'failure total, no check mode'
-           # else:
+            #User interface not available with nipype
+            #if CHECK =="yes" and len(DISPLAY)>0:
+            #   print "checking"
+            #    check_region_mapping(texture, vert, trian, iwrong)
+            #     i=0
+            #     while True and i<10:
+            #         try:
+            #             choice_user = raw_input("""Do you want to get rid of region with:
+            #                                 1) {0} nodes
+            #                                 2) {1} nodes
+            #                                 3) continue the pipeline anyway
+            #                                 (answer: 1, 2, or 3)? \n""".format(len(V1), len(V2)))
+            #             print "you chose " + choice_user
+
+            #            choice_user = int(choice_user)
+            #             if choice_user not in [1, 2, 3]:
+            #                 raise ValueError
+            #             break 
+            #         except ValueError:
+            #             print 'please choose 1, 2 or 3'
+            #             i += 1
+            #             continue
+            #     else:
+            #         print 'failure total, no check mode'
+            # else:
             print "no check, selecting automatically the smallest components"
             choice_user=argmin((len(V1), len(V2)))+1
             if choice_user==3:
