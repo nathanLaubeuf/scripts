@@ -134,7 +134,7 @@ def reunify_both_regions(rh_region_mapping, lh_region_mapping, rh_vertices, lh_v
 
 
 
-
+### Aseg2Srf wrapper
 class Aseg2SrfInputSpec(CommandLineInputSpec):
     in_subject_id = traits.String(desc = "Subject FreeSurfer Id",
                          argstr = '-s %s',
@@ -155,11 +155,9 @@ class Aseg2Srf(CommandLine):
         subject_path = os.path.join(os.environ.get('SUBJECTS_DIR'), self.inputs.in_subject_id)
         label_list = ['004', '005', '007', '008', '010', '011', '012', '013', '014', '015', '016', '017', '018', '026', '028', '043',
          '044', '046', '047', '049', '050', '051', '052', '053', '054', '058', '060', '251', '252', '253', '254', '255']
-        outputs['out_files'] = [os.path.join(subject_path, 'ascii', 'aseg_%s.srf' %i)
-                                       for i in  label_list]
+        outputs['out_files'] = [os.path.join(subject_path, 'ascii', 'aseg_%s.srf' %i) for i in  label_list]
         return outputs
-
-
+### End of Aseg2Srf wrapper
 
 
 

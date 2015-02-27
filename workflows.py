@@ -120,13 +120,13 @@ def SubcorticalSurface(name='subcorticalsurfaces'):
     aseg2srf = pe.Node(interface=su.Aseg2Srf(), name='aseg2srf')
     list_subcortical = pe.MapNode(interface=su.ListSubcortical(), name='list_subcortical', iterfield=['in_file'])
     #ListSubcortical not in su
-    outputnode = pe.MapNode(interface=niu.IdentityInterface(fields=['out_fields']), name='outputnode')
+    outputnode = pe.MapNode(interface=niu.IdentityInterface(fields=['out_files']), name='outputnode')
 
     wf = pe.Workflow(name=name)
     wf.connect([
         (inputnode, aseg2srf, [('in_subject_id', 'in_subject_id')]),
         (aseg2srf, list_subcortical, [('out_files', 'in_file')]),
-        (list_subcortical, outputnode, [('out_files', 'in_file')])])
+        (list_subcortical, outputnode, [('out_file', 'in_files')])])
 
     return wf
 
