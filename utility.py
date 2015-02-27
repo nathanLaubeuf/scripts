@@ -136,35 +136,26 @@ def reunify_both_regions(rh_region_mapping, lh_region_mapping, rh_vertices, lh_v
 
 
 class Aseg2SrfInputSpec(CommandLineInputSpec):
-    in_subject_id = File(desc = "Subject FreeSurfer Id",
-                         argstr = '-s %d',
+    in_subject_id = traits.String(desc = "Subject FreeSurfer Id",
+                         argstr = '-s %s',
                          exists = True,
                          mandatory = True)
 
 class Aseg2SrfOutputSpec(TraitedSpec):
-    out_subcortical_surf_list = File(desc = "Output subcortical surfaces", exists = True)
+    out_files = traits.List(trait=File(exists=True))
 
 class Aseg2Srf(CommandLine):
     input_spec = Aseg2SrfInputSpec
     output_spec = Aseg2SrfOutputSpec
-    _cmd = './aseg2srf' 
-
-    def _gen_subjects_dir(self):
-        return os.getcwd()
+    _cmd = '/home/user/scripts2/aseg2srf'
+ #_cmd = scripts_dir + "/aseg2srf"
 
     def _list_outputs(self):
-        if isdefined(self.inputs.subjects_dir):
-            subjects_dir = self.inputs.subjects_dir
-        else:
-            subjects_dir = self._gen_subjects_dir()
-        
         outputs = self.output_spec().get()
-        outputs['subject_id'] = self.inputs.subject_id
-        outputs['subjects_dir'] = subjects_dir
-        subject_path = os.path.join(subjects_dir, self.inputs.subject_id)
-        label_list = [4, 5, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 26, 28, 43, 44, 46, 47, 49, 50, 51, 52, 53,
-                      54, 58, 60, 251, 252, 253, 254, 255]
-        outputs['subcortical_surf'] = [os.path.join(subject_path, 'ascii', 'aseg_%d' %i)
+        subject_path = os.path.join(os.environ.get('SUBJECTS_DIR'), self.inputs.in_subject_id)
+        label_list = ['004', '005', '007', '008', '010', '011', '012', '013', '014', '015', '016', '017', '018', '026', '028', '043',
+         '044', '046', '047', '049', '050', '051', '052', '053', '054', '058', '060', '251', '252', '253', '254', '255']
+        outputs['out_files'] = [os.path.join(subject_path, 'ascii', 'aseg_%s.srf' %i)
                                        for i in  label_list]
         return outputs
 
@@ -196,7 +187,7 @@ class Remesher(CommandLine):
     """
     input_spec = RemesherInputSpec
     output_spec = RemesherOutputSpec
-    _cmd = "/home/user/scripts3/remesher/cmdremesher/cmdremesher"
+    _cmd = "/home/user/scripts2/remesher/cmdremesher/cmdremesher"
     #_cmd = scripts_dir + "/remesher/cmdremesher/cmdremesher"
     def _gen_filename(self, name):
         if name is 'out_file':
@@ -244,7 +235,9 @@ class RegionMapping(BaseInterface):
                  triangles_low = self.inputs.triangles_low,
                  vertices_high = self.inputs.vertices_high,
                  ref_tables = self.inputs.ref_tables,
-                 aparc_annot = self.inputs.aparc_annot)
+                 aparc_annot = self.inputs.aparc_annot
+                 # scripts_dir = scripts_dir
+                 )
         script = Template("""
             rl = '$rl'
             vertices_low = '$vertices_low';
@@ -252,11 +245,11 @@ class RegionMapping(BaseInterface):
             vertices_high = '$vertices_high';
             ref_tables = '$ref_tables';
             aparc_annot = '$aparc_annot';
-            addpath('/home/user/scripts3');
+            addpath('/home/user/scripts2');
             region_mapping_2(rl, vertices_low, triangles_low, vertices_high, ref_tables, aparc_annot); 
             quit;
             """).safe_substitute(d)
-        ##changes needed for addpath (specific architecture)
+        ##changes needed for addpath (specific architecture) ->addpath('$scipts_dir');
         mlab = MatlabCommand(script=script, mfile=True)
         result = mlab.run()
         return result.runtime
@@ -292,14 +285,43 @@ class CheckRegionMappingOutputSpect(TraitedSpec):
 class CheckRegionMapping(CommandLine):
     input_spec = CheckRegionMappingInputSpect
     output_spec = CheckRegionMappingOutputSpect
-    _cmd = 'python /home/user/scripts3/check_region_mapping_2.py'
-    #_cmd = Template("""python '$path'/check_region_mapping_2.py""").safe_substitute(path = scripts_dir)
+    _cmd = 'python /home/user/scripts2/check_region_mapping_2.py'
+    #_cmd = scripts_dir + "/check_region_mapping_2.py"
     _terminal_output = 'stream'
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs['region_mapping_low'] = self.inputs.region_mapping_low
         return outputs
 ### End of check_region_mapping wrapper      
+
+
+
+
+
+### ListSubcortical wrapper
+class ListSubcorticalInputSpect(CommandLineInputSpec):
+    in_file = File(argstr ='%s', 
+                        exists = True, 
+                        mandatory = True,
+                        position = 0)
+
+class ListSubcorticalOutputSpect(TraitedSpec):
+    triangles = File(exists=True)
+    vertices = File(exists=True)
+
+class ListSubcortical(CommandLine):
+    input_spec = ListSubcorticalInputSpect
+    output_spec = ListSubcorticalOutputSpect
+    _cmd = 'python /home/user/scripts2/list_subcortical_2.py'
+    #_cmd = scripts_dir + "/list_subcortical_2.py"
+    _terminal_output = 'stream'
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['triangles'] = os.path.abspath(fname_presuffix("",  prefix=self.inputs.in_file[-12:-4], suffix='_tri.txt'))
+        outputs['vertices'] = os.path.abspath(fname_presuffix("",  prefix=self.inputs.in_file[-12:-4], suffix='_vert.txt'))
+        return outputs
+### End of ListSubcortical wrapper
+
 
 
 
